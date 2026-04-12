@@ -50,32 +50,22 @@ object ProviderRegistry {
             executeStandard = { res, subCb, cb -> if (res.isVariety) invokeKisskh(res.title, res.year, res.season, res.episode, subCb, cb) }
         ),
         
-        // 4. Vidlink
+        // 4. Vidlink (DIUBAHSUAI: TOLAK SEMUA ANIME & ANIME MOVIE)
         ProviderDef(
             key = "p_vidlink", displayName = "Vidlink",
             executeStandard = { res, subCb, cb -> 
-                invokeVidlink(
-                    title = res.title,
-                    tmdbId = res.tmdbId,
-                    imdbId = res.imdbId,
-                    year = res.year,
-                    season = res.season,
-                    episode = res.episode,
-                    subtitleCallback = subCb,
-                    callback = cb
-                ) 
-            },
-            executeAnime = { res, subCb, cb -> 
-                invokeVidlink(
-                    title = res.title,
-                    tmdbId = res.tmdbId,
-                    imdbId = res.imdbId,
-                    year = res.year,
-                    season = res.imdbSeason,
-                    episode = res.imdbEpisode,
-                    subtitleCallback = subCb,
-                    callback = cb
-                ) 
+                if (!res.isAnime) {
+                    invokeVidlink(
+                        title = res.title,
+                        tmdbId = res.tmdbId,
+                        imdbId = res.imdbId,
+                        year = res.year,
+                        season = res.season,
+                        episode = res.episode,
+                        subtitleCallback = subCb,
+                        callback = cb
+                    ) 
+                }
             }
         ),
         
