@@ -26,6 +26,15 @@ data class ProviderDef(
 
 object ProviderRegistry {
 
+    // MAP UNTUK TUKAR TAJUK KHAS UNTUK KISSKH
+    // Masukkan tajuk Simkl (huruf kecil) di sebelah kiri, dan tajuk KissKH di sebelah kanan.
+    private val kisskhTitleAliases = mapOf(
+        "men on a mission" to "knowing bros",
+        "how do you play?" to "hangout with yoo",
+        "how do you play" to "hangout with yoo"
+        // Anda boleh tambah lagi tajuk-tajuk lain di sini pada masa hadapan (pisahkan dengan koma)
+    )
+
     val builtInProviders = listOf(
         
         // 1. KAIDO (DIUTAMAKAN UNTUK ANIME)
@@ -65,7 +74,13 @@ object ProviderRegistry {
             executeStandard = { res, subCb, cb -> 
                 // Syarat: Mesti Variety DAN dari Korea
                 if (res.isVariety && res.isKorean) { 
-                    invokeKisskh(res.title, res.year, res.season, res.episode, subCb, cb) 
+                    
+                    // LOGIK PENUKARAN TAJUK:
+                    // Tukar tajuk asal kepada huruf kecil, check dalam map, kalau ada tukar, kalau tak ada guna tajuk asal.
+                    val titleLower = res.title?.lowercase() ?: ""
+                    val searchTitle = kisskhTitleAliases[titleLower] ?: res.title
+                    
+                    invokeKisskh(searchTitle, res.year, res.season, res.episode, subCb, cb) 
                 } 
             }
         ),
