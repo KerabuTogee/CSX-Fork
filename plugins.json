@@ -1,0 +1,23 @@
+[
+    {
+        "iconUrl": "https://github.com/SaurabhKaperwan/CSX/raw/refs/heads/master/CineStream/icon.png",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/KerabuTogee/CSX-Fork",
+        "fileSize": 604315,
+        "status": 1,
+        "authors": [
+            "megix"
+        ],
+        "tvTypes": [
+            "TvSeries",
+            "Movie",
+            "AsianDrama",
+            "Anime"
+        ],
+        "version": 402,
+        "internalName": "CineStream",
+        "description": "Movies, Series, Anime and AsianDrama",
+        "url": "https://raw.githubusercontent.com/KerabuTogee/CSX-Fork/builds/CineStream.cs3",
+        "name": "CineStream"
+    }
+]

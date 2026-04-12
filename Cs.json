@@ -1,0 +1,9 @@
+{
+  "name": "T o g e",
+  "description": "English",
+  "iconUrl": "https://i.imgur.com/sH0MPzI.jpeg",
+  "manifestVersion": 2,
+  "pluginLists": [
+    "https://raw.githubusercontent.com/KerabuTogee/CSX-Fork/refs/heads/builds/plugins.json"
+  ]
+}
