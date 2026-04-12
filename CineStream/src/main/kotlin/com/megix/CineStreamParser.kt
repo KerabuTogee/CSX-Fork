@@ -29,7 +29,8 @@ data class AllLoadLinksData(
     val imdbSeason : Int? = null,
     val imdbEpisode : Int? = null,
     val imdbYear : Int? = null,
-    val isVariety: Boolean = false
+    val isVariety: Boolean = false,
+    val isKorean: Boolean = false // DIEDIT: TAMBAH ISKOREAN
 )
 
 //Showbox
@@ -732,9 +733,3 @@ data class PrimeSrcServer(
     @param:JsonProperty("file_size") val fileSize: String?,
     @param:JsonProperty("file_name") val fileName: String?
 )
-
-
-
-
-
-
