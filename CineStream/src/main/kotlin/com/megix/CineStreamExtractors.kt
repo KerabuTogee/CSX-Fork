@@ -1434,7 +1434,7 @@ object CineStreamExtractors {
                         callback.invoke(
                             ExtractorLink(
                                 source = "1080p", 
-                                name = "1080p",
+                                name = "Vidlink",
                                 url = link.url,
                                 referer = link.referer,
                                 quality = 1080, // Priority paling atas
@@ -1452,7 +1452,7 @@ object CineStreamExtractors {
                         callback.invoke(
                             ExtractorLink(
                                 source = "Auto", 
-                                name = "Auto",
+                                name = "Vidlink",
                                 url = link.url,
                                 referer = link.referer,
                                 quality = 0, // Priority bawah sikit dari 1080p
