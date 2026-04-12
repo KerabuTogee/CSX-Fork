@@ -27,13 +27,8 @@ data class ProviderDef(
 object ProviderRegistry {
 
     val builtInProviders = listOf(
-        // 1. Animes
-        ProviderDef(
-            key = "p_animes", displayName = "Animes",
-            executeAnime = { res, subCb, cb -> invokeAnimes(res.malId, res.anilistId, res.episode, res.year, "kitsu", subCb, cb) }
-        ),
         
-        // 2. Kaido
+        // 1. KAIDO (DIUTAMAKAN UNTUK ANIME)
         ProviderDef(
             key = "p_kaido", displayName = "Kaido",
             executeAnime = { res, subCb, cb -> 
@@ -43,18 +38,13 @@ object ProviderRegistry {
                 invokeKaido(data.hianimeurl, data.episode, null, subCb, cb) 
             }
         ),
-        
-        // 3. KissKH
-        ProviderDef(
-            key = "p_kisskh", displayName = "KissKH",
-            executeStandard = { res, subCb, cb -> if (res.isVariety) invokeKisskh(res.title, res.year, res.season, res.episode, subCb, cb) }
-        ),
-        
-        // 4. Vidlink (DIUBAHSUAI: TOLAK SEMUA ANIME & ANIME MOVIE)
+
+        // 2. VIDLINK (DIUTAMAKAN UNTUK MOVIES & TV SERIES SAHAJA)
         ProviderDef(
             key = "p_vidlink", displayName = "Vidlink",
             executeStandard = { res, subCb, cb -> 
-                if (!res.isAnime) {
+                // Syarat: Bukan Anime DAN bukan rancangan Variety
+                if (!res.isAnime && !res.isVariety) {
                     invokeVidlink(
                         title = res.title,
                         tmdbId = res.tmdbId,
@@ -68,14 +58,35 @@ object ProviderRegistry {
                 }
             }
         ),
-        
-        // 5. Videasy
+
+        // 3. KISSKH (KHUSUS UNTUK VARIETY/REALITY SHOW KOREA)
         ProviderDef(
-            key = "p_videasy", displayName = "Videasy",
-            executeStandard = { res, subCb, cb -> invokeVideasy(res.title, res.tmdbId, res.imdbId, res.year, res.season, res.episode, subCb, cb) }
+            key = "p_kisskh", displayName = "KissKH",
+            executeStandard = { res, subCb, cb -> 
+                // Syarat: Mesti Variety DAN dari Korea
+                if (res.isVariety && res.isKorean) { 
+                    invokeKisskh(res.title, res.year, res.season, res.episode, subCb, cb) 
+                } 
+            }
+        ),
+
+        // 4. ANIMES (BACKUP UNTUK ANIME)
+        ProviderDef(
+            key = "p_animes", displayName = "Animes",
+            executeAnime = { res, subCb, cb -> invokeAnimes(res.malId, res.anilistId, res.episode, res.year, "kitsu", subCb, cb) }
         ),
         
-        // 6. StremioSubs (Ini enjin yang tarik subtitle Stremio Addon kau tu!)
+        // 5. VIDEASY (BACKUP AM UNTUK SEMUA SELAIN ANIME)
+        ProviderDef(
+            key = "p_videasy", displayName = "Videasy",
+            executeStandard = { res, subCb, cb -> 
+                if (!res.isAnime) {
+                    invokeVideasy(res.title, res.tmdbId, res.imdbId, res.year, res.season, res.episode, subCb, cb) 
+                }
+            }
+        ),
+        
+        // 6. STREMIOSUBS (Enjin sub)
         ProviderDef(
             key = "p_stremiosubs", displayName = "StremioSubs",
             executeStandard = { res, subCb, _ -> invokeStremioSubtitles(res.imdbId, res.season, res.episode, subCb) },
