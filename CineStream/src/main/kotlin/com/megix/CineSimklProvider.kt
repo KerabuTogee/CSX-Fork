@@ -33,14 +33,13 @@ import com.megix.CineStreamExtractors.invokeAllSources
 import com.megix.CineStreamExtractors.invokeAllAnimeSources
 
 class CineSimklProvider: MainAPI() {
-    override var name = "CineSimkl"
+    override var name = "CloudStream"
     override var mainUrl = "https://simkl.com"
     override var supportedTypes = setOf(
         TvType.Movie,
         TvType.TvSeries,
         TvType.Anime,
-        TvType.AsianDrama,
-        TvType.Torrent
+        TvType.AsianDrama
     )
     override var lang = "en"
     override val hasMainPage = true
@@ -66,11 +65,12 @@ class CineSimklProvider: MainAPI() {
         "/discover/trending/anime/today_500.json" to "Trending Anime Today",
         "/anime/airing?today?sort=rank" to "Airing Anime Today",
         "/tv/genres/all/all-types/kr/all-networks/this-year/popular-today?limit=$mediaLimit" to "Trending Korean Shows",
-        "/discover/dvd/releases_500.json" to "Trending Movie DVD Releases",
-        "/discover/trending/movies/month_500.json" to "Trending Movie This Month",
-        "/discover/trending/tv/month_500.json" to "Trending Series This Month",
-        "/discover/trending/month_500.json" to "Trending This Month",
-        "/discover/trending/anime/month_500.json" to "Trending Anime This Month",
+        "/tv/genres/all/all-types/kr/all-networks/all-years/rank?limit=$mediaLimit" to "Top Rated Korean Shows",
+        // "/discover/dvd/releases_500.json" to "Trending Movie DVD Releases",
+        // "/discover/trending/movies/month_500.json" to "Trending Movie This Month",
+        // "/discover/trending/tv/month_500.json" to "Trending Series This Month",
+        // "/discover/trending/month_500.json" to "Trending This Month",
+        // "/discover/trending/anime/month_500.json" to "Trending Anime This Month",
         // "/movies/genres/all/all-types/all-countries/this-year/rank?limit=$mediaLimit" to "Top Rated Movies This Year",
         // "/tv/genres/all/all-types/all-countries/all-networks/this-year/rank?limit=$mediaLimit" to "Top Rated Shows This Year",
         // "/tv/genres/all/all-types/all-countries/netflix/all-years/popular-today?limit=$mediaLimit" to "Trending Netflix Shows",
@@ -78,13 +78,12 @@ class CineSimklProvider: MainAPI() {
         // "/tv/genres/all/all-types/all-countries/hbo/all-years/popular-today?limit=$mediaLimit" to "Trending HBO Shows",
         // "/tv/genres/all/all-types/all-countries/appletv/all-years/popular-today?limit=$mediaLimit" to "Trending Apple TV+ Shows",
         // "/movies/genres/all/all-types/all-countries/this-year/revenue?limit=$mediaLimit" to "Box Office Hits This Year",
-        "/movies/genres/all/all-types/all-countries/all-years/rank?limit=$mediaLimit" to "Top Rated Movies",
-        "/tv/genres/all/all-types/all-countries/all-networks/all-years/rank?limit=$mediaLimit" to "Top Rated Shows",
-        "/anime/genres/all/all-types/all-countries/all-networks/all-years/rank?limit=$mediaLimit" to "Top Rated Anime",
-        "/tv/genres/all/all-types/kr/all-networks/all-years/rank?limit=$mediaLimit" to "Top Rated Korean Shows",
+        // "/movies/genres/all/all-types/all-countries/all-years/rank?limit=$mediaLimit" to "Top Rated Movies",
+        // "/tv/genres/all/all-types/all-countries/all-networks/all-years/rank?limit=$mediaLimit" to "Top Rated Shows",
+        // "/anime/genres/all/all-types/all-countries/all-networks/all-years/rank?limit=$mediaLimit" to "Top Rated Anime",
         // "/movies/genres/all/all-countries/all-years/most-anticipated?limit=$mediaLimit" to "Most Anticipated Movies",
-        "/anime/premieres/soon?type=all&limit=$mediaLimit" to "Upcoming Anime",
-        "Personal" to "Personal",
+        // "/anime/premieres/soon?type=all&limit=$mediaLimit" to "Upcoming Anime",
+        // "Personal" to "Personal",
     )
 
     private fun getSimklIdAndType(url: String): Pair<String, String> {
