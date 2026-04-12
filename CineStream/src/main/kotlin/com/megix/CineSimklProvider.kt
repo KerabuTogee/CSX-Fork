@@ -260,10 +260,20 @@ class CineSimklProvider: MainAPI() {
         val genres = json.genres?.map { it }
         val tvType = json.type.orEmpty()
         val country = json.country.orEmpty()
+        
+        // DIEDIT: LOGIK BAHARU UNTUK KESAN KOREAN DAN VARIETY
         val isAnime = tvType == "anime"
+        val isKorean = country == "KR"
+        val isVariety = genres?.any { 
+            it.contains("Reality", true) || 
+            it.contains("Variety", true) || 
+            it.contains("Talk", true) || 
+            it.contains("Game Show", true) 
+        } ?: false
         val isBollywood = country == "IN"
         val isCartoon = genres?.contains("Animation") == true
         val isAsian = !isAnime && country in listOf("JP", "KR", "CN")
+        
         val ids = json.ids
         val allRatings = json.ratings
         val rating = allRatings?.mal?.rating ?: allRatings?.imdb?.rating
@@ -346,7 +356,11 @@ class CineSimklProvider: MainAPI() {
                 isAnime,
                 isBollywood,
                 isAsian,
-                isCartoon
+                isCartoon,
+                null,
+                null,
+                isVariety, // DIEDIT: TAMBAH PARAMETER INI
+                isKorean   // DIEDIT: TAMBAH PARAMETER INI
             ).toJson()
             return newMovieLoadResponse("${enTitle}", url, if(isAnime) TvType.AnimeMovie  else TvType.Movie, data) {
                 this.posterUrl = poster
@@ -390,7 +404,9 @@ class CineSimklProvider: MainAPI() {
                         isAsian,
                         isCartoon,
                         it.tvdb?.season ?: json.season?.toIntOrNull(),
-                        it.tvdb?.episode
+                        it.tvdb?.episode,
+                        isVariety, // DIEDIT: TAMBAH PARAMETER INI
+                        isKorean   // DIEDIT: TAMBAH PARAMETER INI
                     ).toJson()
                 ) {
                     this.name = it.title + if(it.aired == false) " • [UPCOMING]" else ""
@@ -459,6 +475,8 @@ class CineSimklProvider: MainAPI() {
                     res.imdbSeason,
                     res.imdbEpisode,
                     imdbYear,
+                    res.isVariety, // DIEDIT
+                    res.isKorean   // DIEDIT
                 ),
                 subtitleCallback,
                 callback
@@ -485,6 +503,8 @@ class CineSimklProvider: MainAPI() {
                     null,
                     null,
                     null,
+                    res.isVariety, // DIEDIT
+                    res.isKorean   // DIEDIT
                 ),
                 subtitleCallback,
                 callback
@@ -619,5 +639,7 @@ class CineSimklProvider: MainAPI() {
         val isCartoon   : Boolean = false,
         val imdbSeason  : Int?    = null,
         val imdbEpisode : Int?    = null,
+        val isVariety   : Boolean = false, // DIEDIT
+        val isKorean    : Boolean = false  // DIEDIT
     )
 }
