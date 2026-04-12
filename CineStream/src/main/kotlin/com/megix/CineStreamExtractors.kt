@@ -3286,8 +3286,12 @@ object CineStreamExtractors {
         // 1. CUCI INPUT: Buang segala benda lepas tanda '?'
         val cleanInput = titleOrUrl?.substringBefore("?") ?: return
 
-        // 2. LOGIK IDENTITI & SEASON (Dengan Taktik Cari Tajuk Tepat)
-        val id = if (!cleanInput.contains("/")) {
+        // 2. LOGIK IDENTITI & SEASON 
+        // PENYELESAIAN ISU FATE/STRANGE FAKE:
+        // Guna semakan HTTP atau domain untuk pastikan ia betul-betul URL, bukan sekadar check tanda '/'
+        val isUrl = cleanInput.startsWith("http", ignoreCase = true) || cleanInput.contains("kaido.to", ignoreCase = true)
+        
+        val id = if (!isUrl) {
             val searchQuery = if (season != null && season > 1) "$cleanInput Season $season" else cleanInput
             val searchUrl = "$kaidoAPI/search?keyword=${URLEncoder.encode(searchQuery, "UTF-8")}"
             val searchDoc = Jsoup.parse(app.get(searchUrl, headers = headers).text)
@@ -3320,7 +3324,7 @@ object CineStreamExtractors {
         val epHtml = try { JSONObject(epListJson).getString("html") } catch(e: Exception) { return }
         val epDoc = Jsoup.parse(epHtml)
         
-        // TIADA LAGI penyelamat "firstOrNull". Jika tiada episod tersebut (contoh ep 1155), beritahu "No Link Found"
+        // TIADA LAGI penyelamat "firstOrNull". Jika tiada episod tersebut, beritahu "No Link Found"
         val epId = epDoc.select("a[data-number=\"${episode ?: 1}\"]").attr("data-id")
                    ?.takeIf { it.isNotBlank() } ?: return
 
@@ -3342,7 +3346,7 @@ object CineStreamExtractors {
             
             val serverType = server.text().trim()
             
-            // TAKTIK BARU: TAPIS SERVER (Hanya Benarkan Vidstreaming)
+            // TAPIS SERVER (Hanya Benarkan Vidstreaming)
             if (!serverType.equals("Vidstreaming", ignoreCase = true)) {
                 return@safeAmap
             }
@@ -3362,9 +3366,10 @@ object CineStreamExtractors {
                 }
             }
 
-            // PENAPIS 2: VIDEO 1080P SAHAJA
+            // PENAPIS 2: VIDEO 1080P DAN AUTO SAHAJA
             val penapisVideo: (ExtractorLink) -> Unit = { link ->
-                if (link.name.contains("1080") || link.quality == Qualities.P1080.value) {
+                val nameLower = link.name.lowercase()
+                if (nameLower.contains("1080") || link.quality == Qualities.P1080.value || nameLower.contains("auto")) {
                     callback.invoke(link)
                 }
             }
