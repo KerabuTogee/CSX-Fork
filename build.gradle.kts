@@ -21,6 +21,11 @@ buildscript {
         classpath("com.github.recloudstream:gradle:master-SNAPSHOT")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.3.0")
     }
+
+    // ✨ TAMBAH BAHAGIAN INI UNTUK FIX RALAT JITPACK ✨
+    configurations.classpath {
+        resolutionStrategy.force("com.github.vidstige:jadb:v1.2.1")
+    }
 }
 
 allprojects {
