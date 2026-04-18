@@ -115,11 +115,10 @@ class MovieBoxProvider : MainAPI() {
         val parsed = Uri.parse(url)
         val path = parsed.path ?: ""
         
-        // Build query string with sorted parameters (if any)
         val query = if (parsed.queryParameterNames.isNotEmpty()) {
             parsed.queryParameterNames.sorted().joinToString("&") { key ->
                 parsed.getQueryParameters(key).joinToString("&") { value ->
-                    "$key=$value"  // Don't URL encode here - Python doesn't do it
+                    "$key=$value" 
                 }
             }
         } else ""
@@ -164,143 +163,73 @@ class MovieBoxProvider : MainAPI() {
         return "$timestamp|2|$signatureB64"
     }
 
-    // Dibersihkan dari filter "Hindi dub"
+    // --- HOMEPAGE DITUKAR 100% KEPADA TMDB ---
     override val mainPage = mainPageOf(
-        "4516404531735022304" to "Trending",
-        "5692654647815587592" to "Trending in Cinema",
-        "414907768299210008"  to "Bollywood",
-        "3859721901924910512" to "South Indian",
-        "8019599703232971616" to "Hollywood",
-        "4741626294545400336" to "Top Series This Week",
-        "8434602210994128512" to "Anime",
-        "1255898847918934600" to "Reality TV",
-        "4903182713986896328" to "Indian Drama",
-        "7878715743607948784" to "Korean Drama",
-        "8788126208987989488" to "Chinese Drama",
-        "3910636007619709856" to "Western TV",
-        "5177200225164885656" to "Turkish Drama",
-        "1|1" to "Movies",
-        "1|2" to "Series",
-        "1|1006" to "Anime",
-        "1|1;country=India" to "Indian (Movies)",
-        "1|2;country=India" to "Indian (Series)",
-        "1|1;country=United States" to "USA (Movies)",
-        "1|2;country=United States" to "USA (Series)",
-        "1|1;country=Japan" to "Japan (Movies)",
-        "1|2;country=Japan" to "Japan (Series)",
-        "1|1;country=China" to "China (Movies)",
-        "1|2;country=China" to "China (Series)",
-        "1|1;country=Philippines" to "Philippines (Movies)",
-        "1|2;country=Philippines" to "Philippines (Series)",
-        "1|1;country=Thailand" to "Thailand(Movies)",
-        "1|2;country=Thailand" to "Thailand(Series)",
-        "1|1;country=Nigeria" to "Nollywood (Movies)",
-        "1|2;country=Nigeria" to "Nollywood (Series)",
-        "1|1;country=Korea" to "South Korean (Movies)",
-        "1|2;country=Korea" to "South Korean (Series)",
-        "1|1;genre=Action" to "Action (Movies)",
-        "1|1;genre=Crime" to "Crime (Movies)",
-        "1|1;genre=Comedy" to "Comedy (Movies)",
-        "1|1;genre=Romance" to "Romance (Movies)",
-        "1|2;genre=Crime" to "Crime (Series)",
-        "1|2;genre=Comedy" to "Comedy (Series)",
-        "1|2;genre=Romance" to "Romance (Series)"
+        "trending/movie/week" to "Trending Movies",
+        "trending/tv/week" to "Trending Series",
+        "movie/popular" to "Popular Movies",
+        "tv/popular" to "Popular Series",
+        "movie/top_rated" to "Top Rated Movies",
+        "discover/movie?with_genres=28" to "Action Movies",
+        "discover/movie?with_genres=35" to "Comedy Movies",
+        "discover/movie?with_genres=27" to "Horror Movies",
+        "discover/movie?with_genres=878" to "Sci-Fi Movies",
+        "discover/movie?with_genres=16" to "Animation Movies",
+        "discover/tv?with_genres=10759" to "Action & Adventure Series",
+        "discover/tv?with_genres=10765" to "Sci-Fi & Fantasy Series"
     )
 
     override suspend fun getMainPage(page: Int, request: MainPageRequest): HomePageResponse {
-        val perPage = 15
-        val url = if (request.data.contains("|")) "$mainUrl/wefeed-mobile-bff/subject-api/list" else "$mainUrl/wefeed-mobile-bff/tab/ranking-list?tabId=0&categoryType=${request.data}&page=$page&perPage=$perPage"
+        val apiKey = "1865f43a0549ca50d341dd9ab8b29f49"
+        val baseUrl = "https://api.themoviedb.org/3/${request.data}"
+        
+        // Memaksa API untuk beri senarai content English sahaja (Original Language)
+        val url = if (baseUrl.contains("?")) {
+            "$baseUrl&api_key=$apiKey&page=$page&with_original_language=en"
+        } else {
+            "$baseUrl?api_key=$apiKey&page=$page&with_original_language=en"
+        }
 
-        val data1 = request.data
+        val response = app.get(url).text
+        val root = try {
+            mapper.readTree(response)
+        } catch (e: Exception) {
+            return newHomePageResponse(emptyList())
+        }
 
-        val mainParts = data1.substringBefore(";").split("|")
-        val pg = mainParts.getOrNull(0)?.toIntOrNull() ?: 1
-        val channelId = mainParts.getOrNull(1)
+        val results = root["results"] ?: return newHomePageResponse(emptyList())
 
-        val options = mutableMapOf<String, String>()
-        data1.substringAfter(";", "")
-            .split(";")
-            .forEach {
-                val (k, v) = it.split("=").let { p ->
-                    p.getOrNull(0) to p.getOrNull(1)
-                }
-                if (!k.isNullOrBlank() && !v.isNullOrBlank()) {
-                    options[k] = v
-                }
+        val items = results.mapNotNull { item ->
+            // Filter tambahan keselamatan: Pastikan content asalnya English
+            val origLang = item["original_language"]?.asText()
+            if (origLang != null && origLang != "en") return@mapNotNull null
+
+            val isMovie = item.has("title")
+            val title = if (isMovie) item["title"]?.asText() else item["name"]?.asText()
+            title ?: return@mapNotNull null
+
+            val posterPath = item["poster_path"]?.asText()
+            val posterUrl = if (!posterPath.isNullOrEmpty()) "https://image.tmdb.org/t/p/w500$posterPath" else null
+
+            val releaseDate = if (isMovie) item["release_date"]?.asText() else item["first_air_date"]?.asText()
+            val year = releaseDate?.take(4) ?: ""
+
+            val type = if (isMovie) TvType.Movie else TvType.TvSeries
+
+            // Format rahsia URL supaya fungsi load() tahu nak cari tajuk ni dalam MovieBox
+            val packedUrl = "tmdbsearch|${if(isMovie) "movie" else "tv"}|$title|$year"
+
+            newMovieSearchResponse(
+                name = title,
+                url = packedUrl,
+                type = type
+            ) {
+                this.posterUrl = posterUrl
+                this.score = Score.from10(item["vote_average"]?.asText())
             }
+        }
 
-        val classify = options["classify"] ?: "All"
-        val country  = options["country"] ?: "All"
-        val year     = options["year"] ?: "All"
-        val genre    = options["genre"] ?: "All"
-        val sort     = options["sort"] ?: "ForYou"
-
-        val jsonBody = """{"page":$pg,"perPage":$perPage,"channelId":"$channelId","classify":"$classify","country":"$country","year":"$year","genre":"$genre","sort":"$sort"}"""
-
-        val xClientToken = generateXClientToken()
-        val xTrSignature = generateXTrSignature("POST", "application/json", "application/json; charset=utf-8", url , jsonBody)
-
-        val getxTrSignature = generateXTrSignature("GET", "application/json", "application/json", url)
-
-        val headers = mapOf(
-            "user-agent" to "com.community.mbox.in/50020042 (Linux; U; Android 16; en_IN; sdk_gphone64_x86_64; Build/BP22.250325.006; Cronet/133.0.6876.3)",
-            "accept" to "application/json",
-            "content-type" to "application/json",
-            "connection" to "keep-alive",
-            "x-client-token" to xClientToken,
-            "x-tr-signature" to xTrSignature,
-            "x-client-info" to """{"package_name":"com.community.mbox.in","version_name":"3.0.03.0529.03","version_code":50020042,"os":"android","os_version":"16","device_id":"$deviceId","install_store":"ps","gaid":"d7578036d13336cc","brand":"google","model":"${randomBrandModel()}","system_language":"en","net":"NETWORK_WIFI","region":"IN","timezone":"Asia/Calcutta","sp_code":""}""",
-            "x-client-status" to "0",
-            "x-play-mode" to "2"
-        )
-
-        val getheaders = mapOf(
-            "user-agent" to "com.community.mbox.in/50020042 (Linux; U; Android 16; en_IN; sdk_gphone64_x86_64; Build/BP22.250325.006; Cronet/133.0.6876.3)",
-            "accept" to "application/json",
-            "content-type" to "application/json",
-            "connection" to "keep-alive",
-            "x-client-token" to xClientToken,
-            "x-tr-signature" to getxTrSignature,
-            "x-client-info" to """{"package_name":"com.community.mbox.in","version_name":"3.0.03.0529.03","version_code":50020042,"os":"android","os_version":"16","device_id":"$deviceId","install_store":"ps","gaid":"d7578036d13336cc","brand":"google","model":"sdk_gphone64_x86_64","system_language":"en","net":"NETWORK_WIFI","region":"IN","timezone":"Asia/Calcutta","sp_code":""}""",
-            "x-client-status" to "0",
-        )
-
-        val requestBody = jsonBody.toRequestBody("application/json".toMediaType())
-        val response = if (request.data.contains("|")) app.post(url, headers = headers, requestBody = requestBody) else app.get(url, headers = getheaders)
-
-        val responseBody = response.body.string()
-        val data = try {
-            val mapper = jacksonObjectMapper()
-            val root = mapper.readTree(responseBody)
-            val items = root["data"]?.get("items") ?: root["data"]?.get("subjects") ?: return newHomePageResponse(emptyList())
-            items.mapNotNull { item ->
-                val title = item["title"]?.asText()?.substringBefore("[") ?: return@mapNotNull null
-                val id = item["subjectId"]?.asText() ?: return@mapNotNull null
-                val coverImg = item["cover"]?.get("url")?.asText()
-                val subjectType = item["subjectType"]?.asInt() ?: 1
-                val type = when (subjectType) {
-                    1 -> TvType.Movie
-                    2 -> TvType.TvSeries
-                    else -> TvType.Movie
-                }
-                newMovieSearchResponse(
-                    name = title,
-                    url = id,
-                    type = type
-                ) {
-                    this.posterUrl = coverImg
-                    this.score = Score.from10(item["imdbRatingValue"]?.asText())
-                }
-            }
-        } catch (_: Exception) {
-            null
-        } ?: emptyList()
-
-        return newHomePageResponse(
-            listOf(
-                HomePageList(request.name, data)
-            )
-        )
+        return newHomePageResponse(listOf(HomePageList(request.name, items)))
     }
 
     override suspend fun search(query: String,page: Int): SearchResponseList {
@@ -358,11 +287,54 @@ class MovieBoxProvider : MainAPI() {
     }
 
     override suspend fun load(url: String): LoadResponse {
-        val id = Regex("""subjectId=([^&]+)""")
-            .find(url)
-            ?.groupValues?.get(1)
-            ?: url.substringAfterLast('/')
+        var id = ""
 
+        // --- SISTEM TULANG BELAKANG (TMDB TO MOVIEBOX MATCHER) ---
+        if (url.startsWith("tmdbsearch|")) {
+            val parts = url.split("|")
+            val targetTitle = parts[2]
+            
+            // App cari cerita secara senyap dalam pelayan MovieBox
+            val searchResults = search(targetTitle, 1)
+            val normTarget = cleanTitle(targetTitle)
+            
+            var bestMatchUrl: String? = null
+            var highestScore = 0
+            
+            for (res in searchResults) {
+                val resTitleClean = cleanTitle(res.name)
+                var score = 0
+                
+                // Pemarkahan ketepatan tajuk
+                if (resTitleClean == normTarget) {
+                    score = 100
+                } else if (resTitleClean.startsWith(normTarget)) {
+                    score = 80
+                } else if (resTitleClean.contains(normTarget)) {
+                    score = 50
+                } else if (tokenEquals(resTitleClean, normTarget)) {
+                    score = 40
+                }
+                
+                if (score > highestScore) {
+                    highestScore = score
+                    bestMatchUrl = res.url // Ini adalah MovieBox subjectId
+                }
+            }
+            
+            if (bestMatchUrl == null) {
+                throw ErrorLoadingException("Sorry, this movie/series is not yet available on MovieBox servers.")
+            }
+            id = bestMatchUrl
+        } else {
+            // Kod asal jika URL bukan dari TMDB
+            id = Regex("""subjectId=([^&]+)""")
+                .find(url)
+                ?.groupValues?.get(1)
+                ?: url.substringAfterLast('/')
+        }
+
+        // --- SAMBUNG PROSES LOAD MOVIEBOX MACAM BIASA ---
         val finalUrl = "$mainUrl/wefeed-mobile-bff/subject-api/get?subjectId=$id"
         val xClientToken = generateXClientToken()
         val xTrSignature = generateXTrSignature("GET", "application/json", "application/json", finalUrl)
@@ -641,7 +613,6 @@ class MovieBoxProvider : MainAPI() {
                             if (dubSubjectId == originalSubjectId) {
                                 originalLanguageName = lanName
                             } else {
-                                // Filter Dubs: HANYA tambah ke senarai jika English
                                 if (lanName.contains("English", ignoreCase = true) || lanName.equals("en", ignoreCase = true)) {
                                     subjectIds.add(Pair(dubSubjectId, lanName))
                                 }
@@ -743,7 +714,6 @@ class MovieBoxProvider : MainAPI() {
                                             ?: caption["lan"]?.asText()
                                             ?: "Unknown"
                                         
-                                        // Filter Subtitles: HANYA jika English
                                         if (lang.contains("English", ignoreCase = true) || lang.equals("en", ignoreCase = true)) {
                                             subtitleCallback.invoke(
                                                 newSubtitleFile(
@@ -780,7 +750,6 @@ class MovieBoxProvider : MainAPI() {
                                             ?: caption["language"]?.asText()
                                             ?: "Unknown"
                                         
-                                        // Filter Subtitles: HANYA jika English
                                         if (lang.contains("English", ignoreCase = true) || lang.equals("en", ignoreCase = true)) {
                                             subtitleCallback.invoke(
                                                 newSubtitleFile(
