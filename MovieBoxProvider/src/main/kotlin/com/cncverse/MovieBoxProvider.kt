@@ -213,7 +213,8 @@ class MovieBoxProvider : MainAPI() {
 
             val type = if (isMovie) TvType.Movie else TvType.TvSeries
 
-            val packedUrl = "tmdbsearch|${if(isMovie) "movie" else "tv"}|$title|$year"
+            // Format url supaya Cloudstream tak tambah benda pelik-pelik
+            val packedUrl = "$mainUrl/tmdbsearch|${if(isMovie) "movie" else "tv"}|$title|$year"
 
             newMovieSearchResponse(
                 name = title,
@@ -228,7 +229,6 @@ class MovieBoxProvider : MainAPI() {
         return newHomePageResponse(listOf(HomePageList(request.name, items)))
     }
 
-    // FUNGSI BARU UTK SELESAIKAN ISU ITERATOR
     private suspend fun internalSearch(query: String, page: Int): List<SearchResponse> {
         val url = "$mainUrl/wefeed-mobile-bff/subject-api/search/v2"
         val jsonBody = """{"page": $page, "perPage": 20, "keyword": "$query"}"""
@@ -290,11 +290,12 @@ class MovieBoxProvider : MainAPI() {
     override suspend fun load(url: String): LoadResponse {
         var id = ""
 
-        if (url.startsWith("tmdbsearch|")) {
-            val parts = url.split("|")
-            val targetTitle = parts[2]
+        // DIBETULKAN: Guna contains sebab Cloudstream dah tambah mainUrl kat depan
+        if (url.contains("tmdbsearch|")) {
+            val payload = url.substringAfter("tmdbsearch|")
+            val parts = payload.split("|")
+            val targetTitle = parts.getOrNull(1) ?: ""
             
-            // Guna internalSearch supaya for-loop tak crash
             val searchResults = internalSearch(targetTitle, 1)
             val normTarget = cleanTitle(targetTitle)
             
