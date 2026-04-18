@@ -44,6 +44,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.net.URLEncoder
+import java.net.URLDecoder
 import java.security.MessageDigest
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
@@ -292,7 +293,8 @@ class MovieBoxProvider : MainAPI() {
 
         if (url.contains("tmdbsearch")) {
             val uri = Uri.parse(url)
-            val targetTitle = uri.getQueryParameter("title") ?: ""
+            val rawTitle = uri.getQueryParameter("title") ?: ""
+            val targetTitle = URLDecoder.decode(rawTitle, "UTF-8")
             
             val searchResults = internalSearch(targetTitle, 1)
             val normTarget = cleanTitle(targetTitle)
@@ -321,7 +323,7 @@ class MovieBoxProvider : MainAPI() {
             }
             
             if (bestMatchUrl == null) {
-                throw ErrorLoadingException("Cerita ini belum wujud di server MovieBox.")
+                throw ErrorLoadingException("Cerita '$targetTitle' belum wujud di server MovieBox.")
             }
             id = bestMatchUrl
         } else {
@@ -375,11 +377,11 @@ class MovieBoxProvider : MainAPI() {
                 val staffType = staff["staffType"]?.asInt()
                 if (staffType == 1) {
                     val name = staff["name"]?.asText() ?: return@mapNotNull null
-                    val character = staff["character"]?.asText()
+                    val characterName = staff["character"]?.asText()
                     val avatarUrl = staff["avatarUrl"]?.asText()
                     ActorData(
                         Actor(name, avatarUrl),
-                        roleString = character
+                        roleString = characterName
                     )
                 } else null
             }
@@ -659,7 +661,7 @@ class MovieBoxProvider : MainAPI() {
                                 val resolutions = stream["resolutions"]?.asText() ?: ""
                                 val signCookieRaw = stream["signCookie"]?.asText()
                                 val signCookie = if (signCookieRaw.isNullOrEmpty()) null else signCookieRaw
-                                val id = stream["id"]?.asText() ?: "$subjectId|$season|$episode"
+                                val streamId = stream["id"]?.asText() ?: "$subjectId|$season|$episode"
                                 val quality = getHighestQuality(resolutions)
                                 
                                 callback.invoke(
@@ -686,20 +688,20 @@ class MovieBoxProvider : MainAPI() {
                                     }
                                 )
                                 
-                                val subLink = "$mainUrl/wefeed-mobile-bff/subject-api/get-stream-captions?subjectId=$subjectId&streamId=$id"
-                                val xClientToken2 = generateXClientToken()
-                                val xTrSignature2 = generateXTrSignature("GET", "", "", subLink)
-                                val headers2 = mapOf(
+                                val subLink = "$mainUrl/wefeed-mobile-bff/subject-api/get-stream-captions?subjectId=$subjectId&streamId=$streamId"
+                                val xClientTokenS = generateXClientToken()
+                                val xTrSignatureS = generateXTrSignature("GET", "", "", subLink)
+                                val headersS = mapOf(
                                     "Authorization" to "Bearer $token",
                                     "user-agent" to "com.community.oneroom/50020088 (Linux; U; Android 13; en_US; $brand; Build/TQ3A.230901.001; Cronet/145.0.7582.0)",
                                     "Accept" to "",
                                     "x-client-info" to """{"package_name":"com.community.oneroom","version_name":"3.0.13.0325.03","version_code":50020088,"os":"android","os_version":"13","install_ch":"ps","device_id":"$deviceId","install_store":"ps","gaid":"1b2212c1-dadf-43c3-a0c8-bd6ce48ae22d","brand":"$model","model":"$brand","system_language":"en","net":"NETWORK_WIFI","region":"US","timezone":"Asia/Calcutta","sp_code":"","X-Play-Mode":"1","X-Idle-Data":"1","X-Family-Mode":"0","X-Content-Mode":"0"}""".trimIndent(),
                                     "X-Client-Status" to "0",
                                     "Content-Type" to "",
-                                    "X-Client-Token" to xClientToken2,
-                                    "x-tr-signature" to xTrSignature2,
+                                    "X-Client-Token" to xClientTokenS,
+                                    "x-tr-signature" to xTrSignatureS,
                                 )
-                                val subResponse = app.get(subLink, headers = headers2)
+                                val subResponse = app.get(subLink, headers = headersS)
                                 val subRoot = mapper.readTree(subResponse.toString())
                                 val extCaptions = subRoot["data"]?.get("extCaptions")
                                 if (extCaptions != null && extCaptions.isArray) {
@@ -721,7 +723,7 @@ class MovieBoxProvider : MainAPI() {
                                     }
                                 }
 
-                                val subLink1 = "$mainUrl/wefeed-mobile-bff/subject-api/get-ext-captions?subjectId=$subjectId&resourceId=$id&episode=0"
+                                val subLink1 = "$mainUrl/wefeed-mobile-bff/subject-api/get-ext-captions?subjectId=$subjectId&resourceId=$streamId&episode=0"
                                 val xClientToken1 = generateXClientToken()
                                 val xTrSignature1 = generateXTrSignature("GET", "", "", subLink1)
                                 val headers1 = mapOf(
