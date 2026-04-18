@@ -56,7 +56,7 @@ class MovieBoxProvider : MainAPI() {
     override var mainUrl = "https://api3.aoneroom.com"
     override var name = "MovieBox"
     override val hasMainPage = true
-    override var lang = "hi"
+    override var lang = "en"
     override val supportedTypes = setOf(TvType.Movie, TvType.TvSeries)
 
     private val secretKeyDefault = base64Decode("NzZpUmwwN3MweFNOOWpxbUVXQXQ3OUVCSlp1bElRSXNWNjRGWnIyTw==")
