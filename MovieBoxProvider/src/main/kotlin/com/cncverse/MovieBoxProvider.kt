@@ -214,8 +214,9 @@ class MovieBoxProvider : MainAPI() {
 
             val type = if (isMovie) TvType.Movie else TvType.TvSeries
 
+            // Format paling selamat: Guna pemisah "~"
             val encodedTitle = URLEncoder.encode(title, "UTF-8")
-            val packedUrl = "$mainUrl/tmdbsearch?title=$encodedTitle&year=$year&type=${if(isMovie) "movie" else "tv"}"
+            val packedUrl = "$mainUrl/tmdbplay~${if(isMovie) "movie" else "tv"}~$year~$encodedTitle"
 
             newMovieSearchResponse(
                 name = title,
@@ -291,11 +292,17 @@ class MovieBoxProvider : MainAPI() {
     override suspend fun load(url: String): LoadResponse {
         var id = ""
 
-        if (url.contains("tmdbsearch")) {
-            val uri = Uri.parse(url)
-            val rawTitle = uri.getQueryParameter("title") ?: ""
+        // Sistem pengesan URL pemisah baru "~"
+        if (url.contains("/tmdbplay~")) {
+            val payload = url.substringAfter("/tmdbplay~")
+            val parts = payload.split("~")
+            
+            // parts[0] = type, parts[1] = year, parts[2] = title
+            val rawTitle = parts.getOrNull(2) ?: ""
             val targetTitle = URLDecoder.decode(rawTitle, "UTF-8")
             
+            if (targetTitle.isBlank()) throw ErrorLoadingException("Gagal membaca tajuk filem dari URL.")
+
             val searchResults = internalSearch(targetTitle, 1)
             val normTarget = cleanTitle(targetTitle)
             
@@ -310,7 +317,7 @@ class MovieBoxProvider : MainAPI() {
                     score = 100
                 } else if (resTitleClean.startsWith(normTarget)) {
                     score = 80
-                } else if (resTitleClean.contains(normTarget)) {
+                } else if (resTitleClean.contains(normTarget) && normTarget.length > 2) {
                     score = 50
                 } else if (tokenEquals(resTitleClean, normTarget)) {
                     score = 40
@@ -323,7 +330,7 @@ class MovieBoxProvider : MainAPI() {
             }
             
             if (bestMatchUrl == null) {
-                throw ErrorLoadingException("Cerita '$targetTitle' belum wujud di server MovieBox.")
+                throw ErrorLoadingException("Maaf, filem/siri '$targetTitle' tiada dalam server MovieBox.")
             }
             id = bestMatchUrl
         } else {
@@ -351,15 +358,15 @@ class MovieBoxProvider : MainAPI() {
 
         val response = app.get(finalUrl, headers = headers)
         if (response.code != 200) {
-            throw ErrorLoadingException("Failed to load data: ${response.body.string()}")
+            throw ErrorLoadingException("Gagal muat turun info MovieBox API. Kod: ${response.code}")
         }
 
         val body = response.body.string()
         val mapper = jacksonObjectMapper()
         val root = mapper.readTree(body)
-        val data = root["data"] ?: throw ErrorLoadingException("No data")
+        val data = root["data"] ?: throw ErrorLoadingException("MovieBox tidak memulangkan sebarang data (ID: $id).")
 
-        val title = data["title"]?.asText()?.substringBefore("[") ?: throw ErrorLoadingException("No title found")
+        val title = data["title"]?.asText()?.substringBefore("[") ?: throw ErrorLoadingException("MovieBox memulangkan data kosong untuk ID ini.")
         val description = data["description"]?.asText()
         val releaseDate = data["releaseDate"]?.asText()
         val duration = data["duration"]?.asText()
