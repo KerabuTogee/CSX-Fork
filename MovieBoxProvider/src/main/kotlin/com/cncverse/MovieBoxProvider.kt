@@ -163,7 +163,6 @@ class MovieBoxProvider : MainAPI() {
         return "$timestamp|2|$signatureB64"
     }
 
-    // --- HOMEPAGE DITUKAR 100% KEPADA TMDB ---
     override val mainPage = mainPageOf(
         "trending/movie/week" to "Trending Movies",
         "trending/tv/week" to "Trending Series",
@@ -183,7 +182,6 @@ class MovieBoxProvider : MainAPI() {
         val apiKey = "1865f43a0549ca50d341dd9ab8b29f49"
         val baseUrl = "https://api.themoviedb.org/3/${request.data}"
         
-        // Memaksa API untuk beri senarai content English sahaja (Original Language)
         val url = if (baseUrl.contains("?")) {
             "$baseUrl&api_key=$apiKey&page=$page&with_original_language=en"
         } else {
@@ -200,7 +198,6 @@ class MovieBoxProvider : MainAPI() {
         val results = root["results"] ?: return newHomePageResponse(emptyList())
 
         val items = results.mapNotNull { item ->
-            // Filter tambahan keselamatan: Pastikan content asalnya English
             val origLang = item["original_language"]?.asText()
             if (origLang != null && origLang != "en") return@mapNotNull null
 
@@ -216,7 +213,6 @@ class MovieBoxProvider : MainAPI() {
 
             val type = if (isMovie) TvType.Movie else TvType.TvSeries
 
-            // Format rahsia URL supaya fungsi load() tahu nak cari tajuk ni dalam MovieBox
             val packedUrl = "tmdbsearch|${if(isMovie) "movie" else "tv"}|$title|$year"
 
             newMovieSearchResponse(
@@ -232,7 +228,8 @@ class MovieBoxProvider : MainAPI() {
         return newHomePageResponse(listOf(HomePageList(request.name, items)))
     }
 
-    override suspend fun search(query: String,page: Int): SearchResponseList {
+    // FUNGSI BARU UTK SELESAIKAN ISU ITERATOR
+    private suspend fun internalSearch(query: String, page: Int): List<SearchResponse> {
         val url = "$mainUrl/wefeed-mobile-bff/subject-api/search/v2"
         val jsonBody = """{"page": $page, "perPage": 20, "keyword": "$query"}"""
         val xClientToken = generateXClientToken()
@@ -257,7 +254,7 @@ class MovieBoxProvider : MainAPI() {
         val responseBody = response.body.string()
         val mapper = jacksonObjectMapper()
         val root = mapper.readTree(responseBody)
-        val results = root.get("data")?.get("results") ?: return newSearchResponseList(emptyList())
+        val results = root.get("data")?.get("results") ?: return emptyList()
         val searchList = mutableListOf<SearchResponse>()
         for (result in results) {
             val subjects = result["subjects"] ?: continue
@@ -283,19 +280,22 @@ class MovieBoxProvider : MainAPI() {
                 )
             }
         }
-        return searchList.toNewSearchResponseList()
+        return searchList
+    }
+
+    override suspend fun search(query: String,page: Int): SearchResponseList {
+        return internalSearch(query, page).toNewSearchResponseList()
     }
 
     override suspend fun load(url: String): LoadResponse {
         var id = ""
 
-        // --- SISTEM TULANG BELAKANG (TMDB TO MOVIEBOX MATCHER) ---
         if (url.startsWith("tmdbsearch|")) {
             val parts = url.split("|")
             val targetTitle = parts[2]
             
-            // App cari cerita secara senyap dalam pelayan MovieBox
-            val searchResults = search(targetTitle, 1)
+            // Guna internalSearch supaya for-loop tak crash
+            val searchResults = internalSearch(targetTitle, 1)
             val normTarget = cleanTitle(targetTitle)
             
             var bestMatchUrl: String? = null
@@ -305,7 +305,6 @@ class MovieBoxProvider : MainAPI() {
                 val resTitleClean = cleanTitle(res.name)
                 var score = 0
                 
-                // Pemarkahan ketepatan tajuk
                 if (resTitleClean == normTarget) {
                     score = 100
                 } else if (resTitleClean.startsWith(normTarget)) {
@@ -318,7 +317,7 @@ class MovieBoxProvider : MainAPI() {
                 
                 if (score > highestScore) {
                     highestScore = score
-                    bestMatchUrl = res.url // Ini adalah MovieBox subjectId
+                    bestMatchUrl = res.url
                 }
             }
             
@@ -327,14 +326,12 @@ class MovieBoxProvider : MainAPI() {
             }
             id = bestMatchUrl
         } else {
-            // Kod asal jika URL bukan dari TMDB
             id = Regex("""subjectId=([^&]+)""")
                 .find(url)
                 ?.groupValues?.get(1)
                 ?: url.substringAfterLast('/')
         }
 
-        // --- SAMBUNG PROSES LOAD MOVIEBOX MACAM BIASA ---
         val finalUrl = "$mainUrl/wefeed-mobile-bff/subject-api/get?subjectId=$id"
         val xClientToken = generateXClientToken()
         val xTrSignature = generateXTrSignature("GET", "application/json", "application/json", finalUrl)
