@@ -213,8 +213,9 @@ class MovieBoxProvider : MainAPI() {
 
             val type = if (isMovie) TvType.Movie else TvType.TvSeries
 
-            // Format url supaya Cloudstream tak tambah benda pelik-pelik
-            val packedUrl = "$mainUrl/tmdbsearch|${if(isMovie) "movie" else "tv"}|$title|$year"
+            // DIBETULKAN: Gunakan format query parameter yang stabil
+            val encodedTitle = URLEncoder.encode(title, "UTF-8")
+            val packedUrl = "$mainUrl/tmdbsearch?title=$encodedTitle&year=$year&type=${if(isMovie) "movie" else "tv"}"
 
             newMovieSearchResponse(
                 name = title,
@@ -290,11 +291,10 @@ class MovieBoxProvider : MainAPI() {
     override suspend fun load(url: String): LoadResponse {
         var id = ""
 
-        // DIBETULKAN: Guna contains sebab Cloudstream dah tambah mainUrl kat depan
-        if (url.contains("tmdbsearch|")) {
-            val payload = url.substringAfter("tmdbsearch|")
-            val parts = payload.split("|")
-            val targetTitle = parts.getOrNull(1) ?: ""
+        // DIBETULKAN: Gunakan Uri.parse untuk baca Query Parameters
+        if (url.contains("tmdbsearch")) {
+            val uri = Uri.parse(url)
+            val targetTitle = uri.getQueryParameter("title") ?: ""
             
             val searchResults = internalSearch(targetTitle, 1)
             val normTarget = cleanTitle(targetTitle)
@@ -323,7 +323,7 @@ class MovieBoxProvider : MainAPI() {
             }
             
             if (bestMatchUrl == null) {
-                throw ErrorLoadingException("Sorry, this movie/series is not yet available on MovieBox servers.")
+                throw ErrorLoadingException("Cerita ini belum wujud di server MovieBox.")
             }
             id = bestMatchUrl
         } else {
@@ -377,7 +377,7 @@ class MovieBoxProvider : MainAPI() {
                 val staffType = staff["staffType"]?.asInt()
                 if (staffType == 1) {
                     val name = staff["name"]?.asText() ?: return@mapNotNull null
-                    val character = staff["character"]?.asText()
+                    val character = staff["character"] character = staff["character"]?.asText()
                     val avatarUrl = staff["avatarUrl"]?.asText()
                     ActorData(
                         Actor(name, avatarUrl),
