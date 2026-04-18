@@ -1,0 +1,23 @@
+[
+    {
+        "iconUrl": "https://github.com/NivinCNC/CNCVerse-Cloud-Stream-Extension/raw/refs/heads/master/MovieBoxProvider/icon.png",
+        "fileHash": "sha256-6be1d194965edf9f6b3f1a6ab61c5ee2724e6feb10d59aea5e5221fe487d4f69",
+        "apiVersion": 1,
+        "repositoryUrl": "https://github.com/KerabuTogee/CSX-Fork",
+        "fileSize": 68001,
+        "status": 1,
+        "language": "ta",
+        "authors": [
+            "NivinCNC"
+        ],
+        "tvTypes": [
+            "Movie",
+            "TvSeries"
+        ],
+        "version": 13,
+        "internalName": "MovieBoxProvider",
+        "description": "Multi Language Movies and Series Provider",
+        "url": "https://raw.githubusercontent.com/KerabuTogee/CSX-Fork/builds/MovieBoxProvider.cs3",
+        "name": "MovieBoxProvider"
+    }
+]
