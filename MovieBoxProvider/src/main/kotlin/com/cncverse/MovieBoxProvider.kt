@@ -213,7 +213,6 @@ class MovieBoxProvider : MainAPI() {
 
             val type = if (isMovie) TvType.Movie else TvType.TvSeries
 
-            // DIBETULKAN: Gunakan format query parameter yang stabil
             val encodedTitle = URLEncoder.encode(title, "UTF-8")
             val packedUrl = "$mainUrl/tmdbsearch?title=$encodedTitle&year=$year&type=${if(isMovie) "movie" else "tv"}"
 
@@ -291,7 +290,6 @@ class MovieBoxProvider : MainAPI() {
     override suspend fun load(url: String): LoadResponse {
         var id = ""
 
-        // DIBETULKAN: Gunakan Uri.parse untuk baca Query Parameters
         if (url.contains("tmdbsearch")) {
             val uri = Uri.parse(url)
             val targetTitle = uri.getQueryParameter("title") ?: ""
@@ -377,7 +375,7 @@ class MovieBoxProvider : MainAPI() {
                 val staffType = staff["staffType"]?.asInt()
                 if (staffType == 1) {
                     val name = staff["name"]?.asText() ?: return@mapNotNull null
-                    val character = staff["character"] character = staff["character"]?.asText()
+                    val character = staff["character"]?.asText()
                     val avatarUrl = staff["avatarUrl"]?.asText()
                     ActorData(
                         Actor(name, avatarUrl),
