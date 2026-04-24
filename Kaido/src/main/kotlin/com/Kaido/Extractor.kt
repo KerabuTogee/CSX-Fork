@@ -6,14 +6,12 @@ import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.newSubtitleFile
 import com.lagradost.cloudstream3.utils.ExtractorApi
 import com.lagradost.cloudstream3.utils.ExtractorLink
+import com.lagradost.cloudstream3.utils.Qualities
 import com.lagradost.cloudstream3.utils.M3u8Helper.Companion.generateM3u8
 
-// ==========================================
-// PROVIDER KAIDO KAU KAT SINI
-// ==========================================
 class KaidoExtractor : ExtractorApi() {
-    override val name = "Kaido" // Nama ni yang akan keluar kat senarai link
-    override val mainUrl = "https://kaido.to" // Tukar kalau domain embed dia lain
+    override val name = "Kaido"
+    override val mainUrl = "https://kaido.to"
     override val requiresReferer = false
 
     override suspend fun getUrl(
@@ -22,15 +20,9 @@ class KaidoExtractor : ExtractorApi() {
         subtitleCallback: (SubtitleFile) -> Unit,
         callback: (ExtractorLink) -> Unit
     ) {
-        // Letak logik kau untuk extract link video kat sini.
-        // Bila dah dapat link raw (mp4/m3u8), panggil callback:
-        // callback.invoke(
-        //     ExtractorLink(name, name, urlVideo, mainUrl, getQualityFromName("1080"), isM3u8)
-        // )
+        // Ruangan untuk extractor custom jika perlu
     }
 }
-// ==========================================
-
 
 class Rapid : MegaPlay() {
     override val name = "Rapid"
@@ -87,9 +79,24 @@ open class MegaPlay : ExtractorApi() {
 
             val m3u8 = response.sources?.firstOrNull()?.file ?: return
 
-            generateM3u8(name, m3u8, mainUrl, headers = mainHeaders)
-                .forEach(callback)
+            // 1. Ekstrak semua link dari M3U8
+            val allLinks = generateM3u8(name, m3u8, mainUrl, headers = mainHeaders)
+            
+            // 2. Tapis hanya link yang ada 1080p
+            val links1080p = allLinks.filter { it.quality == Qualities.P1080.value || it.name.contains("1080") }
 
+            // 3. Logik Agresif 1080p Sahaja
+            if (links1080p.isNotEmpty()) {
+                // Kalau wujud 1080p, kita HANYA hantar 1080p kat player.
+                // Resolusi lain kita buang terus.
+                links1080p.forEach(callback)
+            } else {
+                // Fallback: Kalau anime tu memang takde 1080p, kita hantar yang sedia ada
+                // supaya tak keluar ralat "no link found".
+                allLinks.forEach(callback)
+            }
+
+            // Ekstrak Subtitle
             response.tracks?.forEach { track ->
                 if (track.kind == "captions" || track.kind == "subtitles") {
                     val file = track.file ?: return@forEach
