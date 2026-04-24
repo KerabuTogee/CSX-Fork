@@ -8,5 +8,8 @@ class KaidoPlugin : Plugin() {
     override fun load() {
         registerMainAPI(Kaido())
         registerExtractorAPI(Rapid())
+        
+        // REKODKAN EXTRACTOR KAIDO KAU KAT SINI
+        registerExtractorAPI(KaidoExtractor())
     }
 }
