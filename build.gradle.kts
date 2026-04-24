@@ -1,4 +1,4 @@
-import com.android.build.gradle.BaseExtension
+import com.android.build.gradle.LibraryExtension // <-- Dah ditukar dari BaseExtension
 import com.lagradost.cloudstream3.gradle.CloudstreamExtension
 import org.gradle.kotlin.dsl.register
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -45,7 +45,8 @@ fun getSecret(key: String, fallback: String = ""): String {
 
 fun Project.cloudstream(configuration: CloudstreamExtension.() -> Unit) = extensions.getByName<CloudstreamExtension>("cloudstream").configuration()
 
-fun Project.android(configuration: BaseExtension.() -> Unit) = extensions.getByName<BaseExtension>("android").configuration()
+// <-- Dah ditukar dari BaseExtension kepada LibraryExtension supaya dia kenal buildFeatures
+fun Project.android(configuration: LibraryExtension.() -> Unit) = extensions.getByName<LibraryExtension>("android").configuration()
 
 subprojects {
     apply(plugin = "com.android.library")
@@ -54,13 +55,13 @@ subprojects {
 
     cloudstream {
         setRepo(System.getenv("GITHUB_REPOSITORY") ?: "https://github.com/NivinCNC/CNCVerse-Cloud-Stream-Extension")
-        authors = listOf("NivinCNC")
+        authors = listOf("NivinCNC", "megix")
     }
 
     android {
         namespace = "com.cncverse"
 
-        // Ini bahagian yang ditambah untuk baiki ralat BuildConfig
+        // Sekarang compiler takkan bising dah pasal ni
         buildFeatures {
             buildConfig = true
         }
