@@ -25,7 +25,6 @@ import com.lagradost.cloudstream3.ShowStatus
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
 import com.lagradost.cloudstream3.addDate
-import com.lagradost.cloudstream3.addDubStatus
 import com.lagradost.cloudstream3.addEpisodes
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.fixUrl
@@ -72,17 +71,13 @@ class Kaido : MainAPI() {
     private fun Element.toSearchResult(): SearchResponse {
         val href = fixUrl(this.select("a").attr("href"))
         val title = this.select("h3.film-name").text()
-        val subCount =
-                this.selectFirst(".film-poster > .tick.ltr > .tick-sub")?.text()?.toIntOrNull()
-        val dubCount =
-                this.selectFirst(".film-poster > .tick.ltr > .tick-dub")?.text()?.toIntOrNull()
-
-        val posterUrl = fixUrl(this.select("img").attr("data-src"))
+        
+        // Kita abaikan dub count sebab nak fokus sub sahaja
         val type = getType(this.selectFirst("div.fd-infor > span.fdi-item")?.text() ?: "")
+        val posterUrl = fixUrl(this.select("img").attr("data-src"))
 
         return newAnimeSearchResponse(title, href, type) {
             this.posterUrl = posterUrl
-            addDubStatus(dubCount != null, subCount != null, dubCount, subCount)
         }
     }
 
@@ -127,7 +122,6 @@ class Kaido : MainAPI() {
                     "$mainUrl/recently-updated?page=" to "Latest Episodes",
                     "$mainUrl/top-airing?page=" to "Top Airing",
                     "$mainUrl/filter?status=2&language=1&sort=recently_updated&page=" to "Recently Updated (SUB)",
-                    "$mainUrl/filter?status=2&language=2&sort=recently_updated&page=" to "Recently Updated (DUB)",
                     "$mainUrl/recently-added?page=" to "New On Kaido",
                     "$mainUrl/most-popular?page=" to "Most Popular",
                     "$mainUrl/special?page=" to "Special",
@@ -167,10 +161,9 @@ class Kaido : MainAPI() {
         val typeraw = document.select("div.film-stats div.tick").text()
         val type = if (typeraw.contains("Movie",ignoreCase = true)) TvType.AnimeMovie else TvType.Anime
 
-
         val subCount = document.selectFirst(".anisc-detail .tick-sub")?.text()?.toIntOrNull()
-        val dubCount = document.selectFirst(".anisc-detail .tick-dub")?.text()?.toIntOrNull()
-        val dubEpisodes = emptyList<Episode>().toMutableList()
+        
+        // Buang array dubEpisodes sepenuhnya
         val subEpisodes = emptyList<Episode>().toMutableList()
         val responseBody = app.get("$mainUrl/ajax/episode/list/$animeId").text
         val epRes = responseBody.stringParse<Response>()?.getDocument()
@@ -189,44 +182,24 @@ class Kaido : MainAPI() {
         val maxMappedEpisode = metaEpisodeMap.keys
             .mapNotNull { it.toIntOrNull() }
             .maxOrNull()
-        if (maxMappedEpisode != null) {
-            Log.d(
-                "Kaido",
-                "metadataCoverage maxMappedEpisode=$maxMappedEpisode totalMapped=${metaEpisodeMap.size} animeId=$animeId malId=$malId"
-            )
-        }
 
         fun resolveMetaEpisode(episodeKey: String): MetaEpisode? {
             val episodeNumber = episodeKey.toIntOrNull()
             if (episodeNumber != null && maxMappedEpisode != null && episodeNumber > maxMappedEpisode) {
-                Log.d(
-                    "Kaido",
-                    "resolveMetaEpisode key=$episodeKey skippedBecauseBeyondCoverage maxMappedEpisode=$maxMappedEpisode"
-                )
                 return null
             }
             val metaEp = metaEpisodeMap[episodeKey] ?: return null
             val normalizedEpisode = metaEp.episode?.trim()
             val matched = normalizedEpisode == null || normalizedEpisode == episodeKey
-            Log.d(
-                "Kaido",
-                "resolveMetaEpisode key=$episodeKey metaEpisode=$normalizedEpisode matched=$matched hasImage=${!metaEp.image.isNullOrBlank()} hasOverview=${!metaEp.overview.isNullOrBlank()}"
-            )
             return if (matched) metaEp else null
         }
-
 
         epRes?.select(".ss-list > a[href].ssl-item.ep-item")?.forEachIndexed { index, ep ->
             val href = ep.attr("href").removePrefix("/")
             val episodeNum = ep.selectFirst(".ssli-order")?.text()?.toIntOrNull() ?: return@forEachIndexed
             val episodeKey = episodeNum.toString()
             val siteEpisodeTitle = ep.attr("title").ifBlank { "Episode $episodeNum" }
-            Log.d(
-                "Kaido",
-                "episode index=$index sourceHref=$href episodeNum=$episodeNum siteTitle=$siteEpisodeTitle"
-            )
 
-            // --- Helper to get best episode title ---
             fun resolveTitle(ep: Element, episodeKey: String): String {
                 val titleMap = resolveMetaEpisode(episodeKey)?.title
                 val jsonTitle = titleMap?.get("en")
@@ -238,10 +211,6 @@ class Kaido : MainAPI() {
 
             fun createEpisode(source: String): Episode {
                 val metaEp = resolveMetaEpisode(episodeKey)
-                Log.d(
-                    "Kaido",
-                    "createEpisode source=$source episodeKey=$episodeKey metaFound=${metaEp != null} finalPoster=${metaEp?.image ?: animeMetaData?.images?.firstOrNull()?.url ?: poster} finalDescriptionFromMeta=${!metaEp?.overview.isNullOrBlank()}"
-                )
                 return newEpisode(EpisodeLoadData(source, href).toJson()) {
                     this.name = if (type == TvType.AnimeMovie) title else resolveTitle(ep, episodeKey)
                     this.episode = episodeNum
@@ -253,11 +222,13 @@ class Kaido : MainAPI() {
                 }
             }
 
+            // HANYA tarik sub sahaja. Dub diabaikan.
             subCount?.let { if (index < it) subEpisodes += createEpisode("sub") }
-            dubCount?.let { if (index < it) dubEpisodes += createEpisode("dub") }
         }
+        
         val actors = document.select("div.block-actors-content div.bac-item").mapNotNull { it.getActorData() }
         val recommendations = document.select("div.block_area_category div.flw-item").map { it.toSearchResult() }
+        
         return newAnimeLoadResponse(title, url, type) {
             engName = title
             posterUrl = poster
@@ -265,14 +236,16 @@ class Kaido : MainAPI() {
             try { this.logoUrl = logoUrl } catch(_:Throwable){}
             this.tags = genres
             this.plot = description
+            
+            // Masukkan list Sub sahaja
             addEpisodes(DubStatus.Subbed, subEpisodes)
-            addEpisodes(DubStatus.Dubbed, dubEpisodes)
+            
             this.recommendations = recommendations
             this.actors = actors
             addMalId(malId.toIntOrNull())
             addAniListId(anilistId.toIntOrNull())
             try { addKitsuId(kitsuid) } catch(_:Throwable){}
-            // adding info
+            
             document.select(".anisc-info > .item").forEach { info ->
                 val infoType = info.select("span.item-head").text().removeSuffix(":")
                 when (infoType) {
@@ -297,13 +270,16 @@ class Kaido : MainAPI() {
     ): Boolean {
         try {
             val loadData = tryParseJson<EpisodeLoadData>(data)
-            val dubType = loadData?.source ?: data.removePrefix("$mainUrl/").substringBefore("|").ifEmpty { "raw" }
             val hrefPart = loadData?.href ?: data.substringAfterLast("|")
             val epId = hrefPart.substringAfter("ep=")
+            
             val doc = app.get("$mainUrl/ajax/episode/servers?episodeId=$epId")
                 .parsed<Response>()
                 .getDocument()
-            val servers = doc.select(".server-item[data-type=$dubType][data-id], .server-item[data-type=raw][data-id]")
+                
+            // Paksa HANYA proses server sub (data-type=sub). 
+            // Server raw & dub akan direject terus.
+            val servers = doc.select(".server-item[data-type=sub][data-id]")
                 .mapNotNull {
                     val id = it.attr("data-id")
                     val label = it.selectFirst("a.btn")?.text()?.trim()
@@ -313,6 +289,7 @@ class Kaido : MainAPI() {
                         null
                     }
                 }.distinctBy { it.first }
+                
             servers.forEach { (id, label) ->
                 val sourceurl = app.get("${mainUrl}/ajax/episode/sources?id=$id").parsedSafe<EpisodeServers>()?.link
                 if (sourceurl != null) {
@@ -332,8 +309,6 @@ class Kaido : MainAPI() {
         }
     }
 
-
-
     data class Response(
         @SerializedName("status") val status: Boolean,
         @SerializedName("html") val html: String
@@ -348,66 +323,12 @@ class Kaido : MainAPI() {
             @JsonProperty("anilist_id") val aniListId: String?,
     )
 
-    // Kaido Response
-
-    data class KaidoResponse(
-        val headers: KaidoHeaders,
-        val intro: KaidoIntro,
-        val outro: KaidoOutro,
-        val sources: List<KaidoSource>,
-        val subtitles: List<KaidoSubtitle>,
-    )
-
-    data class KaidoHeaders(
-        @JsonProperty("Referer")
-        val referer: String,
-    )
-
-    data class KaidoIntro(
-        val start: Long,
-        val end: Long,
-    )
-
-    data class KaidoOutro(
-        val start: Long,
-        val end: Long,
-    )
-
-    data class KaidoSource(
-        val url: String,
-        val isM3U8: Boolean,
-        val type: String,
-    )
-
-    data class KaidoSubtitle(
-        val url: String,
-        val lang: String,
-    )
-
-
-    data class KaidoAPI(
-        val sources: List<Source>,
-        val tracks: List<Track>,
-    )
-
-    data class Source(
-        val file: String,
-        val type: String,
-    )
-
-    data class Track(
-        val file: String,
-        val label: String,
-    )
-
     data class EpisodeServers(
         val type: String,
         val link: String,
         val server: Long,
     )
 
-
-    // Metadata
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class MetaImage(
         @JsonProperty("coverType") val coverType: String?,
@@ -417,8 +338,8 @@ class Kaido : MainAPI() {
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class MetaEpisode(
         @JsonProperty("episode") val episode: String?,
-        @JsonProperty("airDateUtc") val airDateUtc: String?,  // Keeping only one field
-        @JsonProperty("runtime") val runtime: Int?,     // Keeping only one field
+        @JsonProperty("airDateUtc") val airDateUtc: String?,
+        @JsonProperty("runtime") val runtime: Int?,
         @JsonProperty("image") val image: String?,
         @JsonProperty("title") val title: Map<String, String>?,
         @JsonProperty("overview") val overview: String?,
@@ -433,7 +354,6 @@ class Kaido : MainAPI() {
         @JsonProperty("episodes") val episodes: Map<String, MetaEpisode>?,
         @JsonProperty("mappings") val mappings: MetaMappings? = null
     )
-
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class MetaMappings(
@@ -450,7 +370,7 @@ class Kaido : MainAPI() {
             val objectMapper = ObjectMapper()
             objectMapper.readValue(jsonString, MetaAnimeData::class.java)
         } catch (_: Exception) {
-            null // Return null for invalid JSON instead of crashing
+            null
         }
     }
 
@@ -459,7 +379,7 @@ class Kaido : MainAPI() {
             Gson().fromJson(this, T::class.java)
         } catch (e: Exception) {
             e.printStackTrace()
-            null // Return null if JSON parsing fails
+            null
         }
     }
 
@@ -520,7 +440,6 @@ suspend fun fetchTmdbLogoUrl(
     fun isSvg(o: JSONObject) = path(o).endsWith(".svg", true)
     fun urlOf(o: JSONObject) = "https://image.tmdb.org/t/p/w500${path(o)}"
 
-    // Language match
     var svgFallback: JSONObject? = null
 
     for (i in 0 until logos.length()) {
@@ -536,7 +455,6 @@ suspend fun fetchTmdbLogoUrl(
     }
     svgFallback?.let { return urlOf(it) }
 
-    // Highest voted fallback
     var best: JSONObject? = null
     var bestSvg: JSONObject? = null
 
@@ -565,6 +483,5 @@ suspend fun fetchTmdbLogoUrl(
     best?.let { return urlOf(it) }
     bestSvg?.let { return urlOf(it) }
 
-    // No language match & no voted logos
     return null
 }
