@@ -27,22 +27,15 @@ object StarPopupHelper {
     fun showStarPopupIfNeeded(context: Context) {
         val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
         
-        if (prefs.getBoolean(KEY_SHOWN_STAR_POPUP, false)) {
-            return
-        }
-        
+        // Kita biarkan sistem set 'true' supaya dia ingat popup "dah ditunjuk"
         prefs.edit().putBoolean(KEY_SHOWN_STAR_POPUP, true).apply()
         
-        Handler(Looper.getMainLooper()).post {
-            try {
-                val activity = context as? Activity ?: return@post
-                showStyledDialog(activity)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error showing star popup: ${e.message}")
-            }
-        }
+        // Bahagian Handler yang panggil UI dialog (showStyledDialog) telah dibuang di sini.
+        // Jadi, popup takkan muncul lansung.
     }
     
+    // Function UI di bawah ni dikekalkan supaya struktur kod tak rosak,
+    // tapi ia memang takkan dipanggil langsung oleh sistem.
     private fun showStyledDialog(activity: Activity) {
         val layout = LinearLayout(activity).apply {
             orientation = LinearLayout.VERTICAL
