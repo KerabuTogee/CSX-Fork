@@ -60,6 +60,11 @@ subprojects {
     android {
         namespace = "com.cncverse"
 
+        // Ini bahagian yang ditambah untuk baiki ralat BuildConfig
+        buildFeatures {
+            buildConfig = true
+        }
+
         defaultConfig {
             minSdk = 21
             compileSdkVersion(35)
