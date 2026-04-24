@@ -8,6 +8,30 @@ import com.lagradost.cloudstream3.utils.ExtractorApi
 import com.lagradost.cloudstream3.utils.ExtractorLink
 import com.lagradost.cloudstream3.utils.M3u8Helper.Companion.generateM3u8
 
+// ==========================================
+// PROVIDER KAIDO KAU KAT SINI
+// ==========================================
+class KaidoExtractor : ExtractorApi() {
+    override val name = "Kaido" // Nama ni yang akan keluar kat senarai link
+    override val mainUrl = "https://kaido.to" // Tukar kalau domain embed dia lain
+    override val requiresReferer = false
+
+    override suspend fun getUrl(
+        url: String,
+        referer: String?,
+        subtitleCallback: (SubtitleFile) -> Unit,
+        callback: (ExtractorLink) -> Unit
+    ) {
+        // Letak logik kau untuk extract link video kat sini.
+        // Bila dah dapat link raw (mp4/m3u8), panggil callback:
+        // callback.invoke(
+        //     ExtractorLink(name, name, urlVideo, mainUrl, getQualityFromName("1080"), isM3u8)
+        // )
+    }
+}
+// ==========================================
+
+
 class Rapid : MegaPlay() {
     override val name = "Rapid"
     override val mainUrl = "https://rapid-cloud.co"
