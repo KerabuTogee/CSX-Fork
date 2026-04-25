@@ -66,6 +66,21 @@ class MovieBoxProvider : MainAPI() {
     private val secretKeyDefault = base64Decode("NzZpUmwwN3MweFNOOWpxbUVXQXQ3OUVCSlp1bElRSXNWNjRGWnIyTw==")
     private val secretKeyAlt = base64Decode("WHFuMm5uTzQxL0w5Mm8xaXVYaFNMSFRiWHZZNFo1Wlo2Mm04bVNMQQ==")
 
+    // ==========================================
+    // SISTEM PENAPIS HARDCORE PORN & HENTAI
+    // ==========================================
+    private val hardcoreKeywords = listOf(
+        "porn", "pornography", "hentai", "jav", "xxx", "sex tape", 
+        "ullu", "kooku", "primeshots", "hotshots", "charmsukh", "palang tod"
+    )
+
+    private fun isNsfw(title: String, genre: String? = null): Boolean {
+        val textToCheck = (title + " " + (genre ?: "")).lowercase()
+        // Membenarkan nudity/softcore/R-rated biasa, tapi sekat pornografi & hentai
+        return hardcoreKeywords.any { textToCheck.contains(it) }
+    }
+    // ==========================================
+
     private fun md5(input: ByteArray): String {
         return MessageDigest.getInstance("MD5").digest(input)
             .joinToString("") { "%02x".format(it) }
@@ -241,6 +256,11 @@ class MovieBoxProvider : MainAPI() {
             val items = root["data"]?.get("items") ?: root["data"]?.get("subjects") ?: return newHomePageResponse(emptyList())
             items.mapNotNull { item ->
                 val title = item["title"]?.asText()?.substringBefore("[") ?: return@mapNotNull null
+                val itemGenre = item["genre"]?.asText() ?: ""
+                
+                // NSFW FILTER CHECK UNTUK HOMEPAGE
+                if (isNsfw(title, itemGenre)) return@mapNotNull null
+
                 val id = item["subjectId"]?.asText() ?: return@mapNotNull null
                 val coverImg = item["cover"]?.get("url")?.asText()
                 val subjectType = item["subjectType"]?.asInt() ?: 1
@@ -290,6 +310,11 @@ class MovieBoxProvider : MainAPI() {
             val subjects = result["subjects"] ?: continue
             for (subject in subjects) {
                 val title = subject["title"]?.asText() ?: continue
+                val itemGenre = subject["genre"]?.asText() ?: ""
+
+                // NSFW FILTER CHECK UNTUK SEARCH
+                if (isNsfw(title, itemGenre)) continue
+
                 val id = subject["subjectId"]?.asText() ?: continue
                 val coverImg = subject["cover"]?.get("url")?.asText()
                 val subjectType = subject["subjectType"]?.asInt() ?: 1
@@ -339,8 +364,14 @@ class MovieBoxProvider : MainAPI() {
         val title = data["title"]?.asText()?.substringBefore("[") ?: throw ErrorLoadingException("No title found")
         val description = data["description"]?.asText()
         val releaseDate = data["releaseDate"]?.asText()
-        val duration = data["duration"]?.asText()
         val genre = data["genre"]?.asText()
+        
+        // NSFW FILTER CHECK UNTUK LOAD/DETAILS PAGE
+        if (isNsfw(title, genre)) {
+            throw ErrorLoadingException("Kandungan ini disekat (Porn/Hentai Filter).")
+        }
+
+        val duration = data["duration"]?.asText()
         val imdbRating = data["imdbRatingValue"]?.asText()?.toDoubleOrNull()?.times(10)?.toInt()
         val year = releaseDate?.substring(0, 4)?.toIntOrNull()
 
