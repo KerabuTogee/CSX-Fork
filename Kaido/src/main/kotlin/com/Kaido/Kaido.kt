@@ -54,7 +54,7 @@ import java.nio.charset.StandardCharsets
 import org.json.JSONObject
 
 class Kaido : MainAPI() {
-    override var mainUrl = "https://kaido.to"
+    override var mainUrl = "https://hianimes.se"
     override var name = "Kaido"
     override val hasQuickSearch = false
     override val hasMainPage = true
