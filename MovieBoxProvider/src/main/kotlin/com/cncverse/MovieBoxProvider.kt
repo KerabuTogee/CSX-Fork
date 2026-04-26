@@ -11,6 +11,8 @@ import com.lagradost.cloudstream3.ErrorLoadingException
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.HomePageResponse
 import com.lagradost.cloudstream3.LoadResponse
+import com.lagradost.cloudstream3.LoadResponse.Companion.addImdbId
+import com.lagradost.cloudstream3.LoadResponse.Companion.addTMDbId
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
 import com.lagradost.cloudstream3.Score
@@ -18,6 +20,7 @@ import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.SearchResponseList
 import com.lagradost.cloudstream3.SubtitleFile
 import com.lagradost.cloudstream3.TvType
+import com.lagradost.cloudstream3.addDate
 import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.base64Decode
 import com.lagradost.cloudstream3.base64DecodeArray
@@ -59,22 +62,6 @@ class MovieBoxProvider : MainAPI() {
 
     private val secretKeyDefault = base64Decode("NzZpUmwwN3MweFNOOWpxbUVXQXQ3OUVCSlp1bElRSXNWNjRGWnIyTw==")
     private val secretKeyAlt = base64Decode("WHFuMm5uTzQxL0w5Mm8xaXVYaFNMSFRiWHZZNFo1Wlo2Mm04bVNMQQ==")
-
-    // ==========================================
-    // SISTEM PENAPIS ANIME & PORN
-    // ==========================================
-    private val blockedKeywords = listOf(
-        "anime", "porn", "pornography", "hentai", "jav", "xxx", "sex tape", "kamasutra",
-        "ullu", "kooku", "primeshots", "hotshots", "charmsukh", "palang tod", "rabbit movies",
-        "papa katsu", "uncensored", "r18", "18+", "erotic", "adult animation", "nympho",
-        "stepmom", "stepbrother", "stepsister", "incest", "lust", "seduction", "desire"
-    )
-
-    private fun isBlocked(title: String, genre: String? = null): Boolean {
-        val textToCheck = (title + " " + (genre ?: "")).lowercase()
-        return blockedKeywords.any { textToCheck.contains(it) }
-    }
-    // ==========================================
 
     private fun md5(input: ByteArray): String {
         return MessageDigest.getInstance("MD5").digest(input)
@@ -218,6 +205,7 @@ class MovieBoxProvider : MainAPI() {
         val xTrSignature = generateXTrSignature("POST", "application/json", "application/json; charset=utf-8", url , jsonBody)
         val getxTrSignature = generateXTrSignature("GET", "application/json", "application/json", url)
 
+        // X-Family-Mode dimasukkan terus dari belah server
         val headers = mapOf(
             "user-agent" to "com.community.mbox.in/50020042 (Linux; U; Android 16; en_MY; sdk_gphone64_x86_64; Build/BP22.250325.006; Cronet/133.0.6876.3)",
             "accept" to "application/json",
@@ -225,7 +213,7 @@ class MovieBoxProvider : MainAPI() {
             "connection" to "keep-alive",
             "x-client-token" to xClientToken,
             "x-tr-signature" to xTrSignature,
-            "x-client-info" to """{"package_name":"com.community.mbox.in","version_name":"3.0.03.0529.03","version_code":50020042,"os":"android","os_version":"16","device_id":"$deviceId","install_store":"ps","gaid":"d7578036d13336cc","brand":"google","model":"${randomBrandModel()}","system_language":"en","net":"NETWORK_WIFI","region":"MY","timezone":"Asia/Kuala Lumpur","sp_code":""}""",
+            "x-client-info" to """{"package_name":"com.community.mbox.in","version_name":"3.0.03.0529.03","version_code":50020042,"os":"android","os_version":"16","device_id":"$deviceId","install_store":"ps","gaid":"d7578036d13336cc","brand":"google","model":"${randomBrandModel()}","system_language":"en","net":"NETWORK_WIFI","region":"MY","timezone":"Asia/Kuala Lumpur","sp_code":"","X-Family-Mode":"1"}""",
             "x-client-status" to "0",
             "x-play-mode" to "2" 
         )
@@ -237,7 +225,7 @@ class MovieBoxProvider : MainAPI() {
             "connection" to "keep-alive",
             "x-client-token" to xClientToken,
             "x-tr-signature" to getxTrSignature,
-            "x-client-info" to """{"package_name":"com.community.mbox.in","version_name":"3.0.03.0529.03","version_code":50020042,"os":"android","os_version":"16","device_id":"$deviceId","install_store":"ps","gaid":"d7578036d13336cc","brand":"google","model":"sdk_gphone64_x86_64","system_language":"en","net":"NETWORK_WIFI","region":"MY","timezone":"Asia/Kuala Lumpur","sp_code":""}""",
+            "x-client-info" to """{"package_name":"com.community.mbox.in","version_name":"3.0.03.0529.03","version_code":50020042,"os":"android","os_version":"16","device_id":"$deviceId","install_store":"ps","gaid":"d7578036d13336cc","brand":"google","model":"sdk_gphone64_x86_64","system_language":"en","net":"NETWORK_WIFI","region":"MY","timezone":"Asia/Kuala Lumpur","sp_code":"","X-Family-Mode":"1"}""",
             "x-client-status" to "0",
         )
 
@@ -251,10 +239,6 @@ class MovieBoxProvider : MainAPI() {
             val items = root["data"]?.get("items") ?: root["data"]?.get("subjects") ?: return newHomePageResponse(emptyList())
             items.mapNotNull { item ->
                 val title = item["title"]?.asText()?.substringBefore("[") ?: return@mapNotNull null
-                val itemGenre = item["genre"]?.asText() ?: ""
-                
-                if (isBlocked(title, itemGenre)) return@mapNotNull null
-
                 val id = item["subjectId"]?.asText() ?: return@mapNotNull null
                 val coverImg = item["cover"]?.get("url")?.asText()
                 val subjectType = item["subjectType"]?.asInt() ?: 1
@@ -289,7 +273,7 @@ class MovieBoxProvider : MainAPI() {
             "connection" to "keep-alive",
             "x-client-token" to xClientToken,
             "x-tr-signature" to xTrSignature,
-            "x-client-info" to """{"package_name":"com.community.mbox.in","version_name":"3.0.03.0529.03","version_code":50020042,"os":"android","os_version":"16","device_id":"$deviceId","install_store":"ps","gaid":"d7578036d13336cc","brand":"google","model":"${randomBrandModel()}","system_language":"en","net":"NETWORK_WIFI","region":"MY","timezone":"Asia/Kuala Lumpur","sp_code":""}""",
+            "x-client-info" to """{"package_name":"com.community.mbox.in","version_name":"3.0.03.0529.03","version_code":50020042,"os":"android","os_version":"16","device_id":"$deviceId","install_store":"ps","gaid":"d7578036d13336cc","brand":"google","model":"${randomBrandModel()}","system_language":"en","net":"NETWORK_WIFI","region":"MY","timezone":"Asia/Kuala Lumpur","sp_code":"","X-Family-Mode":"1"}""",
             "x-client-status" to "0"
         )
         val requestBody = jsonBody.toRequestBody("application/json".toMediaType())
@@ -304,10 +288,6 @@ class MovieBoxProvider : MainAPI() {
             val subjects = result["subjects"] ?: continue
             for (subject in subjects) {
                 val title = subject["title"]?.asText() ?: continue
-                val itemGenre = subject["genre"]?.asText() ?: ""
-
-                if (isBlocked(title, itemGenre)) continue
-
                 val id = subject["subjectId"]?.asText() ?: continue
                 val coverImg = subject["cover"]?.get("url")?.asText()
                 val subjectType = subject["subjectType"]?.asInt() ?: 1
@@ -341,7 +321,7 @@ class MovieBoxProvider : MainAPI() {
             "connection" to "keep-alive",
             "x-client-token" to xClientToken,
             "x-tr-signature" to xTrSignature,
-            "x-client-info" to """{"package_name":"com.community.mbox.in","version_name":"3.0.03.0529.03","version_code":50020042,"os":"android","os_version":"16","device_id":"$deviceId","install_store":"ps","gaid":"d7578036d13336cc","brand":"google","model":"${randomBrandModel()}","system_language":"en","net":"NETWORK_WIFI","region":"MY","timezone":"Asia/Kuala Lumpur","sp_code":""}""",
+            "x-client-info" to """{"package_name":"com.community.mbox.in","version_name":"3.0.03.0529.03","version_code":50020042,"os":"android","os_version":"16","device_id":"$deviceId","install_store":"ps","gaid":"d7578036d13336cc","brand":"google","model":"${randomBrandModel()}","system_language":"en","net":"NETWORK_WIFI","region":"MY","timezone":"Asia/Kuala Lumpur","sp_code":"","X-Family-Mode":"1"}""",
             "x-client-status" to "0",
             "x-play-mode" to "2"
         )
@@ -358,10 +338,6 @@ class MovieBoxProvider : MainAPI() {
         val description = data["description"]?.asText()
         val releaseDate = data["releaseDate"]?.asText()
         val genre = data["genre"]?.asText()
-        
-        if (isBlocked(title, genre)) {
-            throw ErrorLoadingException("Kandungan ini disekat.")
-        }
 
         val duration = data["duration"]?.asText()
         val imdbRating = data["imdbRatingValue"]?.asText()?.toDoubleOrNull()?.times(10)?.toInt()
@@ -397,9 +373,6 @@ class MovieBoxProvider : MainAPI() {
             2, 7 -> TvType.TvSeries
             else -> TvType.Movie
         }
-
-        // OPTIMIZATION KILAT: Kita buang terus fungsi cari background/logo dekat TMDB dan Stremio.
-        // Guna data sedia ada dari API MovieBox supaya kelajuan loading maksimum.
         
         if (type == TvType.TvSeries) {
             val episodes = mutableListOf<Episode>()
@@ -493,7 +466,8 @@ class MovieBoxProvider : MainAPI() {
                 "connection" to "keep-alive",
                 "x-client-token" to subjectXClientToken,
                 "x-tr-signature" to subjectXTrSignature,
-                "x-client-info" to """{"package_name":"com.community.oneroom","version_name":"3.0.13.0325.03","version_code":50020088,"os":"android","os_version":"13","install_ch":"ps","device_id":"$deviceId","install_store":"ps","gaid":"1b2212c1-dadf-43c3-a0c8-bd6ce48ae22d","brand":"$model","model":"$brand","system_language":"en","net":"NETWORK_WIFI","region":"MY","timezone":"Asia/Kuala Lumpur","sp_code":"","X-Play-Mode":"1","X-Idle-Data":"1","X-Family-Mode":"0","X-Content-Mode":"0"}""".trimIndent(),
+                // Mengaktifkan Family Mode sini juga supaya video lucah betul-betul tak dapat dimainkan
+                "x-client-info" to """{"package_name":"com.community.oneroom","version_name":"3.0.13.0325.03","version_code":50020088,"os":"android","os_version":"13","install_ch":"ps","device_id":"$deviceId","install_store":"ps","gaid":"1b2212c1-dadf-43c3-a0c8-bd6ce48ae22d","brand":"$model","model":"$brand","system_language":"en","net":"NETWORK_WIFI","region":"MY","timezone":"Asia/Kuala Lumpur","sp_code":"","X-Play-Mode":"1","X-Idle-Data":"1","X-Family-Mode":"1","X-Content-Mode":"0"}""".trimIndent(),
                 "x-client-status" to "0"
             )
 
@@ -536,7 +510,7 @@ class MovieBoxProvider : MainAPI() {
                                 "connection" to "keep-alive",
                                 "x-client-token" to xClientToken,
                                 "x-tr-signature" to xTrSignature,
-                                "x-client-info" to """{"package_name":"com.community.oneroom","version_name":"3.0.13.0325.03","version_code":50020088,"os":"android","os_version":"13","install_ch":"ps","device_id":"$deviceId","install_store":"ps","gaid":"1b2212c1-dadf-43c3-a0c8-bd6ce48ae22d","brand":"$model","model":"$brand","system_language":"en","net":"NETWORK_WIFI","region":"MY","timezone":"Asia/Kuala Lumpur","sp_code":"","X-Play-Mode":"1","X-Idle-Data":"1","X-Family-Mode":"0","X-Content-Mode":"0"}""".trimIndent(),
+                                "x-client-info" to """{"package_name":"com.community.oneroom","version_name":"3.0.13.0325.03","version_code":50020088,"os":"android","os_version":"13","install_ch":"ps","device_id":"$deviceId","install_store":"ps","gaid":"1b2212c1-dadf-43c3-a0c8-bd6ce48ae22d","brand":"$model","model":"$brand","system_language":"en","net":"NETWORK_WIFI","region":"MY","timezone":"Asia/Kuala Lumpur","sp_code":"","X-Play-Mode":"1","X-Idle-Data":"1","X-Family-Mode":"1","X-Content-Mode":"0"}""".trimIndent(),
                                 "x-client-status" to "0"
                             )
 
